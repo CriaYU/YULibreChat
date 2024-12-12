@@ -2,34 +2,12 @@
 # Refer to `docker-compose.override.yaml.example’ for some sample configurations.
 
 services:
-  api:
-    container_name: LibreChat
-    ports:
-      - "${PORT}:${PORT}"
-    depends_on:
-      - mongodb
-      - rag_api
-    image: ghcr.io/danny-avila/librechat-dev:latest
-    restart: always
-    user: "${UID}:${GID}"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    environment:
-      - HOST=0.0.0.0
-      - MONGO_URI=mongodb://mongodb:27017/LibreChat
-      - MEILI_HOST=http://meilisearch:7700
-      - RAG_PORT=${RAG_PORT:-8000}
-      - RAG_API_URL=http://rag_api:${RAG_PORT:-8000}
-    volumes:
-      - type: bind
-        source: ./.env
-        target: /app/.env
-      - ./images:/app/client/public/images
-      - ./logs:/app/api/logs
   mongodb:
     container_name: chat-mongodb
     image: mongo
     restart: always
+    ports:
+      - "27017:27017"
     user: "${UID}:${GID}"
     volumes:
       - ./data-node:/data/db
@@ -39,6 +17,8 @@ services:
     image: getmeili/meilisearch:v1.7.3
     restart: always
     user: "${UID}:${GID}"
+    ports:
+      - "7700:7700"
     environment:
       - MEILI_HOST=http://meilisearch:7700
       - MEILI_NO_ANALYTICS=true
@@ -59,12 +39,12 @@ services:
     image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
     environment:
       - DB_HOST=vectordb
-      - RAG_PORT=${RAG_PORT:-8000}
+    ports:
+      - "8080:8080"
     restart: always
     depends_on:
       - vectordb
     env_file:
       - .env
-
 volumes:
   pgdata2:

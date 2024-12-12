@@ -1,18 +1,11 @@
-const { CacheKeys } = require('librechat-data-provider');
-const { loadDefaultModels, loadConfigModels } = require('~/server/services/Config');
-const { getLogStores } = require('~/cache');
+const {loadDefaultModels, loadConfigModels} = require('~/server/services/Config');
 
 /**
  * @param {ServerRequest} req
  */
 const getModelsConfig = async (req) => {
-  const cache = getLogStores(CacheKeys.CONFIG_STORE);
-  let modelsConfig = await cache.get(CacheKeys.MODELS_CONFIG);
-  if (!modelsConfig) {
-    modelsConfig = await loadModels(req);
-  }
-
-  return modelsConfig;
+  // Can't use cache here because we need to dynamically load models based on permissions
+  return await loadModels(req);
 };
 
 /**
@@ -21,18 +14,10 @@ const getModelsConfig = async (req) => {
  * @returns {Promise<TModelsConfig>} The models config.
  */
 async function loadModels(req) {
-  const cache = getLogStores(CacheKeys.CONFIG_STORE);
-  const cachedModelsConfig = await cache.get(CacheKeys.MODELS_CONFIG);
-  if (cachedModelsConfig) {
-    return cachedModelsConfig;
-  }
+  // Can't cache this because we need to dynamically load models based on
   const defaultModelsConfig = await loadDefaultModels(req);
   const customModelsConfig = await loadConfigModels(req);
-
-  const modelConfig = { ...defaultModelsConfig, ...customModelsConfig };
-
-  await cache.set(CacheKeys.MODELS_CONFIG, modelConfig);
-  return modelConfig;
+  return { ...defaultModelsConfig, ...customModelsConfig};
 }
 
 async function modelController(req, res) {
@@ -40,4 +25,4 @@ async function modelController(req, res) {
   res.send(modelConfig);
 }
 
-module.exports = { modelController, loadModels, getModelsConfig };
+module.exports = {modelController, loadModels, getModelsConfig};

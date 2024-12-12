@@ -511,6 +511,14 @@ export const configSchema = z.object({
       message: 'At least one `endpoints` field must be provided.',
     })
     .optional(),
+  premiumEndpoints: z
+    .object({
+      [EModelEndpoint.azureOpenAI]: z.array(z.string()).default([]),
+    })
+    .strict()
+    .optional(),
+  premiumErrorMessage: z.string().optional().default('This feature is only available to premium users.'),
+  premiumCheckUrl: z.string().url().optional(),
 });
 
 export const getConfigDefaults = () => getSchemaDefaults(configSchema);

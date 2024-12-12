@@ -2,13 +2,66 @@ const { EModelEndpoint, extractEnvVariable } = require('librechat-data-provider'
 const { isUserProvided, normalizeEndpointName } = require('~/server/utils');
 const { fetchModels } = require('~/server/services/ModelService');
 const { getCustomConfig } = require('./getCustomConfig');
+const axios = require('axios');
+
+/**
+ * Check if a user has premium access
+ * @param req
+ * @param checkEndpoint
+ * @returns {Promise<boolean>}
+ */
+async function hasPremium(req, checkEndpoint) {
+  const userEmail = req.user.email || '';
+  if (!checkEndpoint) {
+    return false;
+  }
+  try {
+    const checkUrl = new URL(checkEndpoint);
+    checkUrl.searchParams.set('email', userEmail);
+    const premiumResponse = await axios.get(checkUrl.toString());
+    return premiumResponse.data['hasPremium'] || false;
+  } catch (e) {
+    console.error('Error checking premium access:', e);
+    return false;
+  }
+}
+
+/**
+ * Modify the return of the loadConfigModels function based on access tier.
+ * @param req The req
+ * @returns {Promise<void>} The modified return
+ */
+async function loadConfigModels(req) {
+  /**
+   * Config models in the format of Map<endpoint, modelName[]>
+   * @type {{}|*}
+   */
+  const loadedModels = await loadConfigModels_Original(req);
+  const customConfig = await getCustomConfig();
+
+  /**
+   * Record<endpointName, premiumOnlyModels[]>
+   */
+  const premiumEndpoints = customConfig.premiumEndpoints || {};
+
+  // If not premium, get rid of premium endpoint models from selection
+  if (!await hasPremium(req, customConfig?.premiumCheckUrl)) {
+    for (const [endpoint, models] of Object.entries(premiumEndpoints)) {
+      if (loadedModels[endpoint] !== undefined) {
+        loadedModels[endpoint] = loadedModels[endpoint].filter(model => !models.includes(model));
+      }
+    }
+  }
+
+  return loadedModels;
+}
 
 /**
  * Load config endpoints from the cached configuration object
  * @function loadConfigModels
  * @param {Express.Request} req - The Express request object.
  */
-async function loadConfigModels(req) {
+async function loadConfigModels_Original(req) {
   const customConfig = await getCustomConfig();
 
   if (!customConfig) {
